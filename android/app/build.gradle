@@ -1,0 +1,117 @@
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+def dartEnvironmentVariables = [
+    BUNDLE_ID_SUFFIX: null,
+    BUILD_ENV: '',
+    // GOOGLE_API_KEY_ANDROID: '',
+    // GOOGLE_ADMOB_APP_ID_ANDROID: ''
+
+]
+if (project.hasProperty('dart-defines')) {
+    println(project.property('dart-defines'))
+    dartEnvironmentVariables = dartEnvironmentVariables + project.property('dart-defines')
+        .split(',')
+        .collectEntries { entry ->
+            def pair = URLDecoder.decode(entry, 'UTF-8').split('=')
+            [(pair.first()): pair.last()]
+    }
+} else {
+    println('dart-defines not found')
+}
+
+def appName = "もより"
+if (dartEnvironmentVariables.BUNDLE_ID_SUFFIX != null) {
+    appName += dartEnvironmentVariables.BUNDLE_ID_SUFFIX
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'com.google.gms.google-services'
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('app/key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    compileSdkVersion 30
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    lintOptions {
+        disable 'InvalidPackage'
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        if (dartEnvironmentVariables.BUNDLE_ID_SUFFIX != null) {
+            applicationIdSuffix dartEnvironmentVariables.BUNDLE_ID_SUFFIX
+        }
+        applicationId "com.kuniya_work.moyori"
+        minSdkVersion 23
+        targetSdkVersion 30
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        manifestPlaceholders = [
+            appName: appName,
+            GOOGLE_API_KEY_ANDROID: dartEnvironmentVariables.GOOGLE_API_KEY_ANDROID,
+            GOOGLE_ADMOB_APP_ID_ANDROID: dartEnvironmentVariables.GOOGLE_ADMOB_APP_ID_ANDROID
+        ]
+        multiDexEnabled true
+    }
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    // implementation 'com.google.android.material:material:<version>'
+}
